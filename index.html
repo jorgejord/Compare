@@ -60,6 +60,7 @@
       flex-direction: column;
       scrollbar-width: auto;
       text-align: left;
+      outline: none; /* ให้ focus ได้ไม่แสดงขอบ */
     }
 
     .result::-webkit-scrollbar {
@@ -235,8 +236,8 @@
     <button onclick="openEditor('result2', true)">Raw Result 2</button>
   </div>
   <div class="result-box">
-    <div id="result1" class="result"></div>
-    <div id="result2" class="result"></div>
+    <div id="result1" class="result" tabindex="0"></div>
+    <div id="result2" class="result" tabindex="0"></div>
   </div>
 </div>
 
@@ -367,7 +368,7 @@
   });
   window.addEventListener('resize', updateLineNumbers);
 
-  // Ctrl+Shift+L เพื่อเลือกบรรทัด-คัดลอก
+  // Ctrl+Shift+L เพื่อเลือกบรรทัด-คัดลอก สำหรับ editor
   let wasMark = false;
   editor.addEventListener('keydown', e => {
     if (e.ctrlKey && e.shiftKey && e.key.toLowerCase()==='l') {
@@ -391,6 +392,66 @@
       const c = editor.selectionEnd;
       editor.setSelectionRange(c,c);
     }
+  });
+
+  // Ctrl+Shift+L สำหรับ textarea #text1 และ #text2
+  ['text1', 'text2'].forEach(id => {
+    const el = document.getElementById(id);
+    el.addEventListener('keydown', e => {
+      if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 'l') {
+        e.preventDefault();
+        const t = el.value;
+        let s0 = el.selectionStart, s1 = el.selectionEnd;
+        let st = t.lastIndexOf('\n', s0 - 1) + 1;
+        let en = t.indexOf('\n', s1);
+        if (en === -1) en = t.length;
+        while (en > st && /\s/.test(t[en - 1])) en--;
+        el.setSelectionRange(st, en);
+        navigator.clipboard.writeText(t.slice(st, en)).catch(() => {});
+        setTimeout(() => {
+          const nb = t.indexOf('\n', en);
+          if (nb !== -1) el.setSelectionRange(nb + 1, nb + 1);
+          else el.setSelectionRange(t.length, t.length);
+        }, 0);
+      }
+    });
+  });
+
+  // Ctrl+Shift+L สำหรับ div ผลลัพธ์ #result1 และ #result2
+  ['result1', 'result2'].forEach(id => {
+    const el = document.getElementById(id);
+    el.tabIndex = 0; // ทำให้ focus ได้
+    el.addEventListener('keydown', e => {
+      if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 'l') {
+        e.preventDefault();
+        const sel = window.getSelection();
+        let line = null;
+
+        if (sel.rangeCount > 0) {
+          const anchorNode = sel.anchorNode;
+          if (anchorNode) {
+            line = anchorNode.closest('.line');
+          }
+        }
+
+        // ถ้าไม่ได้เลือกอะไรเลย ให้เลือกแถวแรก
+        if (!line) {
+          const lines = el.querySelectorAll('.line');
+          if (lines.length > 0) line = lines[0];
+        }
+
+        if (line) {
+          const content = line.querySelector('.line-content');
+          const range = document.createRange();
+          range.selectNodeContents(content);
+          sel.removeAllRanges();
+          sel.addRange(range);
+
+          // คัดลอกไป clipboard
+          navigator.clipboard.writeText(content.innerText).catch(() => {});
+        }
+      }
+    });
   });
 
   // เรียกครั้งแรก
