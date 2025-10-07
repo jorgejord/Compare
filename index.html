@@ -107,6 +107,7 @@
       gap: 0px !important;
       margin-top: 20px;
       align-items: flex-start;
+      position: relative;
     }
 
     .result::-webkit-scrollbar {
@@ -452,7 +453,7 @@
           diff = true;
         }
       }
-      // เอา <span class="line-number"> ออก
+      // ไม่มี <span class="line-number">
       r1 += `<div class="line"><span class="line-content">${c1}</span></div>`;
       r2 += `<div class="line"><span class="line-content">${c2}</span></div>`;
     }
@@ -497,16 +498,22 @@
         btn.style.width = '24px';
         btn.style.height = lines[i].offsetHeight + 'px';
         // ซ่อนถ้าอยู่นอก viewport หรือเลยขอบบน
-        if (lineTop + lines[i].offsetHeight < 0 || lineTop > visibleHeight || lineTop < 0) {
-  btn.classList.add('hide');
-} else {
-  btn.classList.remove('hide');
-}
+        if (lineTop + lines[i].offsetHeight < 0 || lineTop > visibleHeight) {
+          btn.classList.add('hide');
+        } else {
+          btn.classList.remove('hide');
+        }
       }
       copyBtns2Div.style.height = result2.scrollHeight + 'px';
     }
     positionCopyBtns();
-    result2.onscroll = positionCopyBtns;
+    
+    // แก้ไข: ตั้งค่า onscroll ที่ถูกต้องสำหรับ result2
+    result2.onscroll = function() {
+      positionCopyBtns();
+      syncResultLineNumbersScroll('result2');
+    };
+    
     window.addEventListener('resize', positionCopyBtns);
 
     // event ปุ่ม copy
@@ -522,6 +529,7 @@
     });
 
     addResultLineClickEvents();
+    updateResultLineNumbers();
   }
 
   const compareView = document.getElementById('compareView');
@@ -564,8 +572,8 @@
       let r = '';
       for (let i=0; i<lines.length; i++) {
         const line = escapeHtml(lines[i]);
-        r += `<div class="line"><span class="line-number">${i+1}</span>` +
-             `<span class="line-content">${line}</span></div>`;
+        // ไม่มี <span class="line-number">
+        r += `<div class="line"><span class="line-content">${line}</span></div>`;
       }
       document.getElementById(currentEditTarget).innerHTML = r;
     } else {
@@ -755,39 +763,49 @@
     });
   }
   
-  function updateResultLineNumbers() {
-  ['result1', 'result2'].forEach((rid, idx) => {
+  function syncResultLineNumbersScroll(rid) {
     const result = document.getElementById(rid);
     const ln = document.getElementById('ln-' + rid);
-    const lines = result.querySelectorAll('.line');
-    ln.innerHTML = '';
-    const lineHeight = lines[0]
-      ? lines[0].offsetHeight
-      : 21;
-    for (let i = 1; i <= lines.length; i++) {
-      const div = document.createElement('div');
-      div.textContent = i;
-      div.style.height = lineHeight + 'px';
-      div.style.lineHeight = lineHeight + 'px';
-      div.style.cursor = 'pointer';
-      // เพิ่ม event เฉพาะฝั่งขวา (result2)
-      if (rid === 'result2') {
+    // ให้ scrollTop ของเลขบรรทัดตรงกับผลลัพธ์
+    ln.scrollTop = result.scrollTop;
+  }
+
+  function updateResultLineNumbers() {
+    ['result1', 'result2'].forEach((rid, idx) => {
+      const result = document.getElementById(rid);
+      const ln = document.getElementById('ln-' + rid);
+      const lines = result.querySelectorAll('.line');
+      ln.innerHTML = '';
+      const lineHeight = lines[0]
+        ? lines[0].offsetHeight
+        : 21;
+      for (let i = 1; i <= lines.length; i++) {
+        const div = document.createElement('div');
+        div.textContent = i;
+        div.style.height = lineHeight + 'px';
+        div.style.lineHeight = lineHeight + 'px';
+        div.style.cursor = 'pointer';
+        // เพิ่ม event คลิกสำหรับทั้ง result1 และ result2
         div.onclick = function() {
-          focusTextareaLine('text2', i);
+          focusTextareaLine(idx === 0 ? 'text1' : 'text2', i);
+        };
+        ln.appendChild(div);
+      }
+      ln.style.height = result.clientHeight + 'px';
+
+      // --- เพิ่ม event scroll ให้ sync ---
+      // สำหรับ result1 ตั้ง onscroll เพื่อซิงค์เลขบรรทัด
+      if (rid === 'result1') {
+        result.onscroll = function() {
+          syncResultLineNumbersScroll(rid);
         };
       }
-      ln.appendChild(div);
-    }
-    ln.style.height = result.clientHeight + 'px';
-  });
-}
-// เรียกหลัง compareText
-const _oldCompareText2 = compareText;
-compareText = function() {
-  _oldCompareText2();
-  updateResultLineNumbers();
-  addResultLineClickEvents();
-};
+      // สำหรับ result2 จะตั้ง onscroll ใน compareText เพื่อรวมการทำงานของปุ่ม copy
+      
+      // sync ครั้งแรก
+      syncResultLineNumbersScroll(rid);
+    });
+  }
   
   // เรียกครั้งแรก
   updateLineNumbers();
