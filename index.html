@@ -31,7 +31,7 @@
       padding: 0;
       border: 1px solid #3c3c3c;
       font-family: monospace;
-      width: 45%;
+      width: 35%; /* ปรับให้แคบลงจาก 45% */
       min-height: 300px;
       max-height: 800px;
       overflow: hidden;
@@ -89,7 +89,7 @@
       padding: 10px;
       border: 1px solid #3c3c3c;
       font-family: monospace;
-      width: 45%;
+      width: 35%; /* ปรับให้แคบลงจาก 45% */
       min-height: 300px;
       max-height: 800px;
       overflow-x: auto;
@@ -279,6 +279,85 @@
       pointer-events: none;
       z-index: 2;
     }
+
+    /* ปรับขนาดปุ่ม copy-line-btn2 ให้พอดีกับบรรทัดและไม่ล้น */
+    .copy-line-btn2 {
+      width: 2em !important;
+      min-width: 0 !important;
+      max-width: 2em !important;
+      height: 1.5em;
+      font-size: 1em;
+      padding: 0;
+      margin: 0;
+      text-align: center;
+      line-height: 1.5em;
+      border-radius: 3px;
+      position: absolute;
+      left: 0;
+      background: #007acc;
+      color: #fff;
+      border: none;
+      cursor: pointer;
+      transition: background 0.15s;
+      display: block;
+      border-left: 4px solid #3e7f9f;
+      box-shadow: 2px 0 8px -2px #000a, 0 1px 0 #2228;
+      margin-right: 4px;
+    }
+    #copyLineBtns2 {
+      width: 2em !important;
+      min-width: 0 !important;
+      max-width: 2em !important;
+    }
+    /* ซ่อนปุ่มถ้าเลยขอบล่าง result2 */
+    .copy-line-btn2.hide {
+      display: none !important;
+    }
+    #copyLineBtns2 {
+      position: absolute;
+      left: -8px;
+      top: 0;
+      width: 32px;
+      pointer-events: none;
+      z-index: 3;
+      /* เพิ่ม overflow: hidden เพื่อไม่ให้ปุ่มเกินขอบ */
+      overflow: hidden;
+    }
+    .copy-line-btn2 {
+      pointer-events: auto;
+    }
+    .copy-line-btn2:hover {
+  background: #005a9e;
+  border-left: 4px solid #fff176;
+  box-shadow: 0 0 0 2px #fff17688, 2px 0 8px -2px #000a;
+  z-index: 10;
+}
+/* เพิ่มเอฟเฟกต์เรืองแสงแนวขวาเมื่อ hover ปุ่ม copy-line-btn2 */
+.copy-line-btn2:hover,
+.copy-line-btn2:focus {
+  background: #005a9e;
+  border-left: 4px solid #fff176;
+  box-shadow: 0 0 0 2px #fff17688, 2px 0 8px -2px #000a;
+  z-index: 10;
+}
+/* เส้นเรืองแสงแนวขวา */
+.copy-line-btn2::after {
+  content: "";
+  position: absolute;
+  left: 100%;
+  top: 0;
+  height: 100%;
+  width: calc(100vw - 60px); /* ขยายเส้นไปทางขวาให้สุดกล่อง result2 */
+  background: linear-gradient(to right, #fff17699 0%, #fff17622 100%);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s;
+  z-index: 1;
+}
+.copy-line-btn2:hover::after,
+.copy-line-btn2:focus::after {
+  opacity: 1;
+}
   </style>
 </head>
 <body>
@@ -306,8 +385,12 @@
   </div>
   <div class="result-box">
     <div id="result1" class="result" tabindex="0"></div>
-    <div id="result2" class="result" tabindex="0"></div>
+    <div style="display:flex; flex-direction:column; align-items:flex-end; justify-content:flex-start; position:relative; min-width:32px;">
+      <div id="copyLineBtns2" style="position:absolute; left:-8px; top:0; width:32px; pointer-events:none;"></div>
+    </div>
+    <div id="result2" class="result" tabindex="0" style="position:relative;"></div>
   </div>
+  <div id="copyLineBtns" style="display:none"></div>
 </div>
 
 <div id="editorView">
@@ -342,6 +425,7 @@
       const l1 = a[i]||'', l2 = b[i]||'';
       const len = Math.max(l1.length, l2.length);
       let c1='', c2='';
+      let diff = false;
       for (let j=0; j<len; j++) {
         const ch1 = l1[j]||' ', ch2 = l2[j]||' ';
         const e1 = escapeHtml(ch1), e2 = escapeHtml(ch2);
@@ -349,18 +433,77 @@
         else {
           c1+=`<span class="diff">${e1}</span>`;
           c2+=`<span class="diff">${e2}</span>`;
+          diff = true;
         }
       }
-      r1 += `<div class="line"><span class="line-number">${i+1}</span>` +
-            `<span class="line-content">${c1}</span></div>`;
-      r2 += `<div class="line"><span class="line-number">${i+1}</span>` +
-            `<span class="line-content">${c2}</span></div>`;
+      r1 += `<div class="line"><span class="line-number">${i+1}</span><span class="line-content">${c1}</span></div>`;
+      r2 += `<div class="line"><span class="line-number">${i+1}</span><span class="line-content">${c2}</span></div>`;
     }
 
     document.getElementById('result1').innerHTML = r1;
     document.getElementById('result2').innerHTML = r2;
-    
-    // เรียก addResultLineClickEvents หลังจากเปรียบเทียบเสร็จ
+
+    // --- ปุ่ม copy ตรงกับบรรทัดจริง ---
+    const copyBtns2Div = document.getElementById('copyLineBtns2');
+    const result2 = document.getElementById('result2');
+
+    // สร้างปุ่ม copy เฉพาะบรรทัดที่ diff
+    let copyBtnsHtml = '';
+    const lines = Array.from(result2.querySelectorAll('.line'));
+    for (let i = 0; i < lines.length; i++) {
+      const l1 = a[i] || '', l2 = b[i] || '';
+      let diff = l1 !== l2;
+      if (diff) {
+        // เปลี่ยนจาก ⮐ เป็นเลขบรรทัด
+        copyBtnsHtml += `<button class="copy-line-btn2" data-line="${i}" title="คัดลอกบรรทัด ${i + 1}">${i + 1}</button>`;
+      }
+    }
+    copyBtns2Div.innerHTML = copyBtnsHtml;
+
+    // จัดตำแหน่งปุ่ม copy ให้ตรงกับบรรทัดจริง
+    function positionCopyBtns() {
+      const result2Rect = result2.getBoundingClientRect();
+      const scrollTop = result2.scrollTop;
+      const visibleHeight = result2.clientHeight;
+      const btns = copyBtns2Div.querySelectorAll('.copy-line-btn2');
+      let btnIdx = 0;
+      for (let i = 0; i < lines.length; i++) {
+        const l1 = a[i] || '', l2 = b[i] || '';
+        let diff = l1 !== l2;
+        if (!diff) continue;
+        const lineRect = lines[i].getBoundingClientRect();
+        const lineTop = lines[i].offsetTop - scrollTop;
+        const btn = btns[btnIdx++];
+        btn.style.position = 'absolute';
+        btn.style.left = '0';
+        btn.style.top = lineTop + 'px';
+        btn.style.width = '24px';
+        btn.style.height = lines[i].offsetHeight + 'px';
+        // ซ่อนถ้าอยู่นอก viewport หรือเลยขอบบน
+        if (lineTop + lines[i].offsetHeight < 0 || lineTop > visibleHeight || lineTop < 0) {
+  btn.classList.add('hide');
+} else {
+  btn.classList.remove('hide');
+}
+      }
+      copyBtns2Div.style.height = result2.scrollHeight + 'px';
+    }
+    positionCopyBtns();
+    result2.onscroll = positionCopyBtns;
+    window.addEventListener('resize', positionCopyBtns);
+
+    // event ปุ่ม copy
+    copyBtns2Div.querySelectorAll('.copy-line-btn2').forEach(btn => {
+      btn.onclick = function () {
+        const idx = parseInt(this.getAttribute('data-line'));
+        const text1Lines = document.getElementById('text1').value.split('\n');
+        const text2Lines = document.getElementById('text2').value.split('\n');
+        text2Lines[idx] = text1Lines[idx] || '';
+        document.getElementById('text2').value = text2Lines.join('\n');
+        compareText();
+      };
+    });
+
     addResultLineClickEvents();
   }
 
