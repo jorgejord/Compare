@@ -385,11 +385,13 @@
     </div>
   </div>
   <div class="button-row">
+    <button onclick="removeLastConsecutiveDuplicateLines('text1')">ลบบรรทัดซ้ำ(ท้ายบรรทัด) (Text1)</button>
     <button onclick="openEditor('text1')">Raw Text 1</button>
     <button onclick="openEditor('result1', true)">Raw Result 1</button>
     <button onclick="compareText()">เปรียบเทียบ</button>
     <button onclick="openEditor('text2')">Raw Text 2</button>
     <button onclick="openEditor('result2', true)">Raw Result 2</button>
+    <button onclick="removeLastConsecutiveDuplicateLines('text2')">ลบบรรทัดซ้ำ(ท้ายบรรทัด) (Text2)</button>
   </div>
   <div class="result-box">
     <!-- ฝั่งซ้าย: result1 + line-numbers (วางไว้ใน div เดียวกันเหมือน textarea) -->
@@ -634,6 +636,49 @@
     }
   });
 
+  function removeLastConsecutiveDuplicateLines(targetId) {
+      const textarea = document.getElementById(targetId);
+      let lines = textarea.value.split('\n');
+      
+      if (lines.length <= 1) {
+          return; // ไม่ต้องทำอะไรถ้ามีไม่เกิน 1 บรรทัด
+      }
+      
+      // เริ่มจากท้ายสุด หาบรรทัดที่ไม่ว่างสุดท้าย
+      let lastNonEmptyIndex = -1;
+      for (let i = lines.length - 1; i >= 0; i--) {
+          if (lines[i].trim() !== '') {
+              lastNonEmptyIndex = i;
+              break;
+          }
+      }
+      
+      if (lastNonEmptyIndex === -1) return; // ไม่มีบรรทัดที่ไม่ว่าง
+      
+      // หาบล็อกซ้ำที่ท้ายสุด
+      let lastLine = lines[lastNonEmptyIndex];
+      let duplicateCount = 0;
+      
+      // นับจำนวนบรรทัดที่ซ้ำกันติดต่อกันจากท้ายสุด
+      for (let i = lastNonEmptyIndex; i >= 0; i--) {
+          if (lines[i].trim() === lastLine.trim()) {
+              duplicateCount++;
+          } else {
+              break;
+          }
+      }
+      
+      // ถ้ามีบรรทัดซ้ำกันติดต่อกันที่ท้ายสุด (มากกว่า 1 บรรทัด)
+      if (duplicateCount > 1) {
+          // เก็บเฉพาะบรรทัดเดียวจากบล็อกซ้ำ + บรรทัดทั้งหมดก่อนหน้า
+          const keepLines = lines.slice(0, lastNonEmptyIndex - duplicateCount + 2);
+          textarea.value = keepLines.join('\n');
+      }
+      
+      // อัพเดตการเปรียบเทียบ
+      compareText();
+  }
+
   // Ctrl+Shift+L สำหรับ textarea #text1 และ #text2
   ['text1', 'text2'].forEach(id => {
     const el = document.getElementById(id);
@@ -840,6 +885,10 @@
       overlay.style.opacity = '0';
     }, 1000);
   }
+function syncResultLineNumbersScroll(id) {}
+function updateResultLineNumbers() {}
+function addResultLineClickEvents() {}
+
 </script>
 </body>
 </html>
